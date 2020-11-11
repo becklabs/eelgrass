@@ -1,9 +1,8 @@
-import re
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import pandas as pd
 import os
-import dateparser
+import datetime
 
 def get_exif(filename):
     exif = Image.open(filename)._getexif()
@@ -22,41 +21,42 @@ def get_exif(filename):
 
     return exif['GPSInfo']
 
-def parse_coords(info):
+def parse_coords(exif):
     for key in ['Latitude','Longitude']:
-        sign = -1 if info.get('GPS'+key+'Ref') in ['S','W'] else 1
-        numbers = info.get('GPS'+key)
+        sign = -1 if exif.get('GPS'+key+'Ref') in ['S','W'] else 1
+        numbers = exif.get('GPS'+key)
         degree = numbers[0]
         minute = numbers[1]
         second = numbers[2]
-        info[key] = sign * (int(degree) + float(minute) / 60 + float(second) / 3600)
-    return info['Latitude'], info['Longitude']
+        exif[key] = sign * (int(degree) + float(minute) / 60 + float(second) / 3600)
+    return exif['Latitude'], exif['Longitude']
 
-def parse_ts(info):
-    time = info.get('GPSTimeStamp')
-    date = info.get('GPSDateStamp')
+def parse_time(exif):
+    time = exif.get('GPSTimeStamp')
+    date = exif.get('GPSDateStamp')
     timestr = ''
-    for x in time[:2]:
-        str1 = str(x) +':'
-        timestr += str1
-    timestr += str(time[3])
-    ts = dateparser.parse(date+' '+timestr)
+    for x in time:
+        timestr += str(int(x))+' '
+    ts = datetime.datetime.strptime(timestr+date,'%H %M %S %Y:%m:%d')
     return ts
     
-def get_images(path):
-    data = pd.DataFrame(columns = ['Filename','Lat','Long','Timestamp','CD','BT'])
+def get(path):
+    data = pd.DataFrame(columns = ['Filename','Lat','Long','Timestamp'])
     filenames = []
     latitudes = [] 
     longitudes = []
     timestamps = []
+    
     for image in os.listdir(path):
         exif = get_exif(path+image)
         lat, long = parse_coords(exif)
-        ts = parse_ts(exif)
+        ts = parse_time(exif)
+        
         filenames.append(image)
         latitudes.append(lat)
         longitudes.append(long)
         timestamps.append(ts)
+        
     data['Filename'] = filenames
     data['Lat'] = latitudes
     data['Long'] = longitudes

@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import datetime
 
-def get_exif(filename):
+def parse_exif(filename):
     exif = Image.open(filename)._getexif()
 
     if exif is not None:
@@ -48,7 +48,7 @@ def get(path):
     timestamps = []
     
     for image in os.listdir(path):
-        exif = get_exif(path+image)
+        exif = parse_exif(path+image)
         lat, long = parse_coords(exif)
         ts = parse_time(exif)
         
